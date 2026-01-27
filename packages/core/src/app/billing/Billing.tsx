@@ -11,6 +11,12 @@ import { Legend } from '../ui/form';
 import BillingForm, { type BillingFormValues } from './BillingForm';
 import getBillingMethodId from './getBillingMethodId';
 
+// The main MasterFFL form component 
+//import { MasterFFL } from "bigc-masterffl-checkout-sdk/checkout";
+
+// Required imports for the component
+//import getCheckoutStepStatuses from '../checkout/getCheckoutStepStatuses';
+
 export interface BillingProps {
     navigateNextStep(): void;
     onReady(): void;
@@ -36,6 +42,7 @@ const Billing = ({ navigateNextStep, onReady, onUnhandledError }:BillingProps): 
     const customer = getCustomer();
     const checkout = getCheckout();
     const cart = getCart();
+    // const CheckoutContext = useCheckout();
 
     if (!config || !customer || !checkout || !cart) {
         throw new Error('Unable to access checkout data')
@@ -93,6 +100,11 @@ const Billing = ({ navigateNextStep, onReady, onUnhandledError }:BillingProps): 
     }, []);
 
     return (
+        <>
+        {/* <MasterFFL
+            checkoutContext={CheckoutContext}
+            getCheckoutStepStatuses={getCheckoutStepStatuses}
+        /> */}
         <AddressFormSkeleton isLoading={isInitializing}>
             <div className="checkout-form">
                 <div className="form-legend-container">
@@ -111,6 +123,7 @@ const Billing = ({ navigateNextStep, onReady, onUnhandledError }:BillingProps): 
                 />
             </div>
         </AddressFormSkeleton>
+        </>
     );
 }
 

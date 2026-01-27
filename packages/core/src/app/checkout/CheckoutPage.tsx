@@ -19,6 +19,7 @@ import React, {
   type ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -49,6 +50,10 @@ import type CheckoutSupport from './CheckoutSupport';
 import { BillingStep, CartSummary, CheckoutHeader, CustomerStep, PaymentStep, ShippingStep } from './components';
 import { mapCheckoutComponentErrorMessage } from './mapErrorMessage';
 import mapToCheckoutProps from './mapToCheckoutProps';
+import {
+  CheckoutNavigationContext,
+} from './CheckoutNavigationContext';
+import { MasterFFLProvider } from 'bigc-masterffl-checkout-sdk/checkout';
 
 export interface CheckoutProps {
     checkoutId: string;
@@ -81,6 +86,8 @@ export interface WithCheckoutProps {
     cart?: Cart;
     consignments?: Consignment[];
     data: CheckoutStoreSelector;
+    checkoutService: any;
+    checkoutState: any;
     error?: Error;
     hasCartChanged: boolean;
     flashMessages?: FlashMessage[];
@@ -115,6 +122,8 @@ const Checkout = ({
                       consignments,
                       cart,
                       data,
+                      checkoutService,
+                      checkoutState,
                       errorLogger,
                       isGuestEnabled,
                       isShowingWalletButtonsOnTop,
@@ -147,6 +156,40 @@ const Checkout = ({
 
     // Initialize refs 1/2
     const stepsRef = useRef<CheckoutStepStatus[]>(steps);
+
+    // ADDED: adapt host checkout state into the shape your SDK provider expects
+    const masterFFLCheckoutContext = useMemo(
+    () => ({ checkoutService, checkoutState }),
+    [checkoutService, checkoutState]
+    );
+
+    // ADDED: your SDK provider expects a function; you already have statuses here
+    const getCheckoutStepStatusesForMasterFFL = useCallback(
+    (_checkoutState: any) => stepsRef.current,
+    []
+    );
+
+    // TEMP LOGGING
+    useEffect(() => {
+        console.groupCollapsed('[Host][CheckoutPage] MasterFFLProvider inputs');
+        console.log('checkoutService typeof:', typeof checkoutService);
+        console.log('checkoutState typeof:', typeof checkoutState);
+
+        // These are the things your SDK uses
+        console.log('checkoutId:', checkoutState?.data?.getCheckout?.()?.id);
+        console.log('storeHash:', checkoutState?.data?.getConfig?.()?.storeProfile?.storeHash);
+        console.log('hasCart:', !!checkoutState?.data?.getCart?.());
+
+        console.log('getCheckoutStepStatusesForMasterFFL returns:',
+            getCheckoutStepStatusesForMasterFFL(checkoutState)?.map((s: any) => ({
+            type: s.type,
+            isActive: s.isActive,
+            }))
+        );
+        console.groupEnd();
+    }, [checkoutService, checkoutState, getCheckoutStepStatusesForMasterFFL]);
+        // TEMP LOGGING END
+
     const embeddedMessenger = useRef<EmbeddedCheckoutMessenger>();
     const stateRef = useRef<{
         hasSelectedShippingOptions: boolean;
@@ -186,6 +229,33 @@ const Checkout = ({
             clearError(error);
         }
     }, [state.activeStepType, error, clearError]);
+
+    const navigationValue = useMemo(
+        () => ({ goToStep: navigateToStep }),
+        [navigateToStep],
+    );
+
+    // TEMP LOGGING
+    useEffect(() => {
+        const active = stepsRef.current.find((s) => s.isActive)?.type;
+
+        console.groupCollapsed('[Host][CheckoutPage] Navigation Provider / Step');
+        console.log('navigationValue keys:', Object.keys(navigationValue || {}));
+        console.log('navigationValue.goToStep typeof:', typeof navigationValue?.goToStep);
+
+        console.log('state.activeStepType:', state.activeStepType);
+        console.log('state.defaultStepType:', state.defaultStepType);
+        console.log('derived active (from stepsRef):', active);
+
+        console.log('stepsRef:', stepsRef.current.map((s) => ({
+            type: s.type,
+            isActive: s.isActive,
+            isComplete: s.isComplete,
+            isRequired: s.isRequired,
+        })));
+        console.groupEnd();
+    }, [state.activeStepType, state.defaultStepType, navigationValue]);
+    // TEMP LOGGING END
 
     const navigateToNextIncompleteStep = useCallback((options?: { isDefault?: boolean }):void => {
         const activeStepIndex = findIndex(stepsRef.current, { isActive: true });
@@ -627,6 +697,12 @@ const Checkout = ({
     }
 
     return (
+        <CheckoutNavigationContext.Provider value={navigationValue}>
+        <MasterFFLProvider
+            checkoutContext={masterFFLCheckoutContext}
+            getCheckoutStepStatuses={getCheckoutStepStatusesForMasterFFL}
+            goToStep={navigationValue.goToStep}
+            >
         <div className={classNames('remove-checkout-step-numbers', { 'is-embedded': isEmbedded() }, { 'themeV2': themeV2 })} data-test="checkout-page-container" id="checkout-page-container">
             <div className="layout optimizedCheckout-contentPrimary">
                 {state.isCartEmpty ?
@@ -662,6 +738,8 @@ const Checkout = ({
             </div>
             {errorModal}
         </div>
+        </MasterFFLProvider>
+        </CheckoutNavigationContext.Provider>
     );
 };
 

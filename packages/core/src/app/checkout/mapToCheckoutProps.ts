@@ -45,6 +45,8 @@ export default function mapToCheckoutProps({
     );
 
     return {
+        checkoutService,
+        checkoutState,
         billingAddress: data.getBillingAddress(),
         cart: data.getCart(),
         clearError: checkoutService.clearError,

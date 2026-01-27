@@ -15,6 +15,15 @@ import ShippingHeader from './ShippingHeader';
 import { type SingleShippingFormValues } from './SingleShippingForm';
 import StripeShipping from './stripeUPE/StripeShipping';
 
+// The main MasterFFL form component 
+//import { MasterFFL } from "bigc-masterffl-checkout-sdk/checkout";
+
+// Required imports for the component
+//import { useCheckout } from '@bigcommerce/checkout/contexts';
+//import getCheckoutStepStatuses from '../checkout/getCheckoutStepStatuses';
+// File: Shipping.tsx
+import { MasterFFLShippingUI } from "bigc-masterffl-checkout-sdk/checkout";
+
 export interface ShippingProps {
     isBillingSameAsShipping: boolean;
     cartHasChanged: boolean;
@@ -44,6 +53,7 @@ function Shipping({
     }: ShippingProps) {
     const [isInitializing, setIsInitializing] = useState(true);
     const [isMultiShippingUnavailableModalOpen, setIsMultiShippingUnavailableModalOpen] = useState(false);
+    // const CheckoutContext = useCheckout();
 
     const { 
         billingAddress,
@@ -196,6 +206,11 @@ function Shipping({
                     onMultiShippingChange={handleMultiShippingModeSwitch}
                     shouldShowMultiShipping={shouldShowMultiShipping}
                 />
+                <MasterFFLShippingUI />
+                {/* <MasterFFL
+                    checkoutContext={CheckoutContext}
+                    getCheckoutStepStatuses={getCheckoutStepStatuses}
+                /> */}
                 <ShippingForm
                     cartHasChanged={cartHasChanged}
                     isBillingSameAsShipping={isBillingSameAsShipping}
