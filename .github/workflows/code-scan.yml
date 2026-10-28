@@ -1,0 +1,76 @@
+name: Code Security Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        type: choice
+        description: What to scan
+        options:
+          - filesystem  # scans source code and dependencies (package.json, lock files)
+          - repo        # scans the full repo (filesystem + secret detection)
+        default: filesystem
+        required: true
+      severity:
+        type: choice
+        description: Minimum severity to report
+        options:
+          - CRITICAL
+          - HIGH,CRITICAL
+          - MEDIUM,HIGH,CRITICAL
+          - LOW,MEDIUM,HIGH,CRITICAL
+        default: HIGH,CRITICAL
+        required: true
+
+jobs:
+  semgrep:
+    name: Semgrep Code Scan
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v6
+      - run: semgrep scan --config auto .
+
+  trivy-scan:
+    name: Trivy — ${{ github.event.inputs.scan_type }} scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Table output (human-readable, visible directly in the run log) ───────
+      - name: Run Trivy — table output
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: ${{ github.event.inputs.severity }}
+          exit-code: '0'
+          ignore-unfixed: true
+
+      # ── JSON output (full detail, saved as artifact) ─────────────────────────
+      - name: Run Trivy — JSON output
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: json
+          output: trivy-results.json
+          severity: ${{ github.event.inputs.severity }}
+          exit-code: '0'
+          ignore-unfixed: true
+
+      # ── Save all reports as downloadable artifacts (30-day retention) ────────
+      - name: Upload scan reports as artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-report-${{ github.event.inputs.scan_type }}-${{ github.run_number }}
+          path: |
+            trivy-results.json
+          retention-days: 30
